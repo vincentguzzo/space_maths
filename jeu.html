@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Math Defense</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #050510;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 900px;
+      height: 550px;
+      box-shadow: 0 0 30px rgba(0, 230, 255, 0.3);
+      border: 3px solid #1a3c5a;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px 25px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #00f0ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+    }
+    #input-container {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(10, 20, 35, 0.85);
+      padding: 8px 18px;
+      border: 2px solid #00f0ff;
+      border-radius: 25px;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+    }
+    #input-label {
+      color: #ffaa00;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    #answer-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 24px;
+      font-weight: bold;
+      width: 120px;
+      text-align: center;
+    }
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 10, 20, 0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .hidden {
+      display: none !important;
+    }
+    h1 {
+      font-size: 38px;
+      color: #00f0ff;
+      text-shadow: 0 0 15px #00f0ff;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    p.subtitle {
+      color: #aaa;
+      margin-bottom: 25px;
+      font-size: 15px;
+      text-align: center;
+      max-width: 600px;
+      line-height: 1.4;
+    }
+    .btn {
+      background: linear-gradient(180deg, #0088cc, #004488);
+      border: 2px solid #00f0ff;
+      color: white;
+      padding: 12px 28px;
+      font-size: 18px;
+      font-family: inherit;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 6px;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+    .btn:hover {
+      background: linear-gradient(180deg, #00aaff, #0066cc);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+      transform: scale(1.05);
+    }
+    .score-table {
+      width: 320px;
+      margin: 15px 0;
+      border-collapse: collapse;
+      background: rgba(0, 30, 60, 0.5);
+      border: 1px solid #00f0ff;
+    }
+    .score-table th, .score-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+    }
+    .score-table th {
+      background: rgba(0, 240, 255, 0.2);
+      color: #ffaa00;
+    }
+    .score-table tr.highlight {
+      background: rgba(255, 215, 0, 0.25);
+      color: #ffff00;
+      font-weight: bold;
+    }
+    .name-input-box {
+      margin: 15px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .name-input-box input {
+      background: #001525;
+      border: 2px solid #ffaa00;
+      color: #fff;
+      padding: 8px 15px;
+      font-size: 20px;
+      font-family: inherit;
+      text-align: center;
+      border-radius: 4px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="900" height="550"></canvas>
+
+    <div id="ui-overlay">
+      <div class="hud-top">
+        <div>SCORE: <span id="score-val">0</span></div>
+        <div>TEMPS: <span id="timer-val">00:00</span></div>
+      </div>
+
+      <div id="input-container" class="hidden">
+        <span id="input-label">CIBLE:</span>
+        <input type="text" id="answer-input" autocomplete="off" placeholder="?" autofocus>
+      </div>
+    </div>
+
+    <!-- ÉCRAN D'ACCUEIL -->
+    <div id="start-screen" class="screen">
+      <h1>Space Math Defense</h1>
+      <p class="subtitle">
+        Détruisez les extraterrestres avant qu'ils ne touchent le bas du cockpit !<br>
+        Tapez le résultat de l'opération et validez avec [ENTRÉE].
+      </p>
+      <button class="btn" id="start-btn">COMMENCER LA PARTIE</button>
+      <button class="btn" id="scores-btn" style="background: linear-gradient(180deg, #aa6600, #553300); border-color: #ffaa00;">🏆 TOP 5 SCORES</button>
+    </div>
+
+    <!-- ÉCRAN DE CLASSEMENT -->
+    <div id="scores-screen" class="screen hidden">
+      <h1 style="color: #ffaa00; text-shadow: 0 0 15px #ffaa00;">HALL OF FAME</h1>
+      <table class="score-table" id="high-scores-table">
+        <thead>
+          <tr><th>#</th><th>NOM</th><th>SCORE</th><th>TEMPS</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button class="btn" id="back-start-btn">RETOUR</button>
+    </div>
+
+    <!-- ÉCRAN GAMEOVER -->
+    <div id="gameover-screen" class="screen hidden">
+      <h1 style="color: #ff3366; text-shadow: 0 0 15px #ff3366;">MISSION ÉCHOUÉE</h1>
+      <p style="font-size: 18px; margin-bottom: 10px;">Un extraterrestre a atteint le cockpit !</p>
+      <p style="color: #00f0ff; font-size: 20px; margin-bottom: 5px;">Score final : <span id="final-score">0</span></p>
+      <p style="color: #00f0ff; font-size: 18px; margin-bottom: 15px;">Temps survécu : <span id="final-time">00:00</span></p>
+
+      <div id="new-record-box" class="name-input-box hidden">
+        <p style="color: #ffaa00; font-weight: bold; font-size: 18px;">🎉 NOUVEAU HIGH SCORE ! 🎉</p>
+        <input type="text" id="player-name" maxlength="10" placeholder="VOTRE NOM">
+        <button class="btn" id="save-score-btn" style="background: linear-gradient(180deg, #00aa44, #005522); border-color: #00ff66;">ENREGISTRER</button>
+      </div>
+
+      <div id="gameover-actions" style="margin-top: 10px;">
+        <button class="btn" id="restart-btn">RECOMMENCER</button>
+        <button class="btn" id="menu-btn">MENU PRINCIPAL</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI elements
+    const startScreen = document.getElementById('start-screen');
+    const scoresScreen = document.getElementById('scores-screen');
+    const gameoverScreen = document.getElementById('gameover-screen');
+    const inputContainer = document.getElementById('input-container');
+    const answerInput = document.getElementById('answer-input');
+    const scoreVal = document.getElementById('score-val');
+    const timerVal = document.getElementById('timer-val');
+    const finalScore = document.getElementById('final-score');
+    const finalTime = document.getElementById('final-time');
+    const newRecordBox = document.getElementById('new-record-box');
+    const playerNameInput = document.getElementById('player-name');
+    const saveScoreBtn = document.getElementById('save-score-btn');
+    const highScoresTable = document.getElementById('high-scores-table').querySelector('tbody');
+
+    // State
+    let gameState = 'START';
+    let score = 0;
+    let startTime = 0;
+    let elapsedTime = 0;
+    let aliens = [];
+    let particles = [];
+    let lastAlienSpawn = 0;
+    let spawnInterval = 3800; // ms
+    let baseSpeed = 20; // px/sec
+    let animationFrameId = null;
+
+    // Highscores localstorage
+    function getHighScores() {
+      const saved = localStorage.getItem('space_math_scores');
+      if (saved) {
+        try { return JSON.parse(saved); } catch(e){}
+      }
+      return [
+        { name: 'COMMANDER', score: 1200, time: '02:15' },
+        { name: 'PILOT', score: 800, time: '01:40' },
+        { name: 'CADET', score: 500, time: '01:10' },
+        { name: 'ROOKIE', score: 300, time: '00:45' },
+        { name: 'NOOB', score: 100, time: '00:20' }
+      ];
+    }
+
+    function saveHighScores(scores) {
+      localStorage.setItem('space_math_scores', JSON.stringify(scores));
+    }
+
+    function updateScoresTable(highlightIndex = -1) {
+      const scores = getHighScores();
+      highScoresTable.innerHTML = '';
+      scores.forEach((sc, i) => {
+        const tr = document.createElement('tr');
+        if (i === highlightIndex) tr.classList.add('highlight');
+        tr.innerHTML = `<td>${i+1}</td><td>${sc.name}</td><td>${sc.score}</td><td>${sc.time}</td>`;
+        highScoresTable.appendChild(tr);
+      });
+    }
+
+    function checkIsHighScore(newScore) {
+      const scores = getHighScores();
+      if (scores.length < 5) return true;
+      return newScore > scores[scores.length - 1].score;
+    }
+
+    // Alien Sprites Generation
+    function createAlienCanvas(variant) {
+      const c = document.createElement('canvas');
+      c.width = 11;
+      c.height = 8;
+      const cx = c.getContext('2d');
+      
+      const sprite1 = [
+        "00100000100",
+        "00010001000",
+        "00111111100",
+        "01101110110",
+        "11111111111",
+        "10111111101",
+        "10100000101",
+        "00011011000"
+      ];
+
+      const sprite2 = [
+        "00100000100",
+        "10010001001",
+        "10111111101",
+        "11101110111",
+        "11111111111",
+        "01111111110",
+        "00100000100",
+        "01000000010"
+      ];
+
+      const pattern = variant === 1 ? sprite1 : sprite2;
+      cx.fillStyle = "#81ee48";
+
+      for (let r = 0; r < 8; r++) {
+        for (let col = 0; col < 11; col++) {
+          if (pattern[r][col] === '1') {
+            cx.fillRect(col, r, 1, 1);
+          }
+        }
+      }
+      return c;
+    }
+
+    const alienSprite1 = createAlienCanvas(1);
+    const alienSprite2 = createAlienCanvas(2);
+
+    // Math operation generator
+    function generateOperation() {
+      const isMult = Math.random() < 0.5;
+      let a, b, text, result;
+
+      if (isMult) {
+        // Multiplications: Pas de produit de deux nombres à deux chiffres
+        if (Math.random() < 0.5) {
+          // a à 1 chiffre, b à 1 ou 2 chiffres
+          a = (Math.floor(Math.random() * 18) + 1) - 9; // -9 à 9
+          if (a === 0) a = 3;
+          b = (Math.floor(Math.random() * 38) + 1) - 19; // -19 à 19
+          if (b === 0) b = -2;
+        } else {
+          // a à 1 ou 2 chiffres, b à 1 chiffre
+          a = (Math.floor(Math.random() * 38) + 1) - 19;
+          if (a === 0) a = -4;
+          b = (Math.floor(Math.random() * 18) + 1) - 9;
+          if (b === 0) b = 2;
+        }
+        result = a * b;
+        const strA = a < 0 ? `(${a})` : `${a}`;
+        const strB = b < 0 ? `(${b})` : `${b}`;
+        text = `${strA} × ${strB}`;
+      } else {
+        // Division à résultat entier
+        const resTemp = (Math.floor(Math.random() * 38) + 1) - 19;
+        const divTemp = (Math.floor(Math.random() * 18) + 1) - 9;
+        const divisor = divTemp === 0 ? 2 : divTemp;
+        const targetRes = resTemp === 0 ? 1 : resTemp;
+        
+        const dividend = targetRes * divisor;
+        result = targetRes;
+
+        const strDividend = dividend < 0 ? `(${dividend})` : `${dividend}`;
+        const strDivisor = divisor < 0 ? `(${divisor})` : `${divisor}`;
+        text = `${strDividend} ÷ ${strDivisor}`;
+      }
+
+      return { text, result };
+    }
+
+    // Background Cockpit Renderer
+    function drawCockpit() {
+      // Space Background
+      ctx.fillStyle = '#030511';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Stars
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 40; i++) {
+        const x = (Math.sin(i * 99 + 1) * 10000) % canvas.width;
+        const y = (Math.cos(i * 33 + 2) * 10000) % (canvas.height - 150);
+        ctx.fillRect(Math.abs(x), Math.abs(y), (i % 2 === 0 ? 2 : 1), (i % 2 === 0 ? 2 : 1));
+      }
+
+      // Planet
+      ctx.beginPath();
+      ctx.arc(750, 140, 50, 0, Math.PI * 2);
+      ctx.fillStyle = '#c86432';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(750, 140, 85, 12, -0.2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(210, 160, 120, 0.7)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Cockpit Frame
+      ctx.fillStyle = '#101721';
+      // Left side frame
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(80, 0);
+      ctx.lineTo(250, 370);
+      ctx.lineTo(0, 370);
+      ctx.fill();
+
+      // Right side frame
+      ctx.beginPath();
+      ctx.moveTo(canvas.width, 0);
+      ctx.lineTo(canvas.width - 80, 0);
+      ctx.lineTo(canvas.width - 250, 370);
+      ctx.lineTo(canvas.width, 370);
+      ctx.fill();
+
+      // Bottom Dashboard
+      ctx.fillStyle = '#182230';
+      ctx.beginPath();
+      ctx.moveTo(0, 370);
+      ctx.lineTo(250, 370);
+      ctx.lineTo(310, 350);
+      ctx.lineTo(590, 350);
+      ctx.lineTo(650, 370);
+      ctx.lineTo(canvas.width, 370);
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.fill();
+
+      // Dashboard details
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#00aaff';
+      ctx.strokeRect(210, 410, 100, 60);
+
+      // Radar
+      ctx.beginPath();
+      ctx.arc(450, 440, 45, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00ffcc';
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,255,200,0.1)';
+      ctx.fill();
+
+      // Reticle in center
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+      ctx.beginPath();
+      ctx.arc(450, 200, 20, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(450, 170); ctx.lineTo(450, 230);
+      ctx.moveTo(420, 200); ctx.lineTo(480, 200);
+      ctx.stroke();
+    }
+
+    // Alien Class
+    class Alien {
+      constructor() {
+        this.width = 44;
+        this.height = 32;
+        this.x = 260 + Math.random() * (canvas.width - 520 - this.width);
+        this.y = -40;
+        const op = generateOperation();
+        this.text = op.text;
+        this.result = op.result;
+        this.animTimer = 0;
+        this.frame = 1;
+      }
+
+      update(dt) {
+        const speed = baseSpeed + (elapsedTime * 0.15); // Progressive speed
+        this.y += speed * dt;
+
+        this.animTimer += dt;
+        if (this.animTimer > 0.4) {
+          this.frame = this.frame === 1 ? 2 : 1;
+          this.animTimer = 0;
+        }
+      }
+
+      draw() {
+        // Sprite
+        const sprite = this.frame === 1 ? alienSprite1 : alienSprite2;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
+
+        // Operation Banner
+        ctx.font = 'bold 16px "Courier New", monospace';
+        const txtWidth = ctx.measureText(this.text).width;
+        
+        ctx.fillStyle = 'rgba(0, 15, 30, 0.85)';
+        ctx.fillRect(this.x + this.width/2 - txtWidth/2 - 6, this.y - 24, txtWidth + 12, 22);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.x + this.width/2 - txtWidth/2 - 6, this.y - 24, txtWidth + 12, 22);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x + this.width/2, this.y - 8);
+      }
+    }
+
+    // Particle Class for Explosions
+    class Particle {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 200;
+        this.vy = (Math.random() - 0.5) * 200;
+        this.life = 0.5; // seconds
+        this.color = ['#81ee48', '#00f0ff', '#ffaa00', '#ffffff'][Math.floor(Math.random() * 4)];
+        this.size = Math.random() * 4 + 2;
+      }
+
+      update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+      }
+
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = Math.max(0, this.life / 0.5);
+        ctx.fillRect(this.x, this.y, this.size, this.size);
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    // Create Explosion
+    function explode(x, y) {
+      for (let i = 0; i < 30; i++) {
+        particles.push(new Particle(x, y));
+      }
+    }
+
+    // Format Time
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // Game Loop
+    let lastTime = 0;
+
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+      lastTime = timestamp;
+
+      if (gameState === 'PLAYING') {
+        elapsedTime = (Date.now() - startTime) / 1000;
+        timerVal.textContent = formatTime(elapsedTime);
+
+        // Spawn Aliens
+        if (timestamp - lastAlienSpawn > Math.max(1500, spawnInterval - elapsedTime * 20)) {
+          aliens.push(new Alien());
+          lastAlienSpawn = timestamp;
+        }
+
+        // Update Aliens
+        for (let i = aliens.length - 1; i >= 0; i--) {
+          const alien = aliens[i];
+          alien.update(dt);
+
+          // Check hit bottom threshold (cockpit border)
+          if (alien.y + alien.height >= 360) {
+            triggerGameOver();
+            break;
+          }
+        }
+
+        // Update Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          particles[i].update(dt);
+          if (particles[i].life <= 0) particles.splice(i, 1);
+        }
+      }
+
+      // Render
+      drawCockpit();
+      aliens.forEach(a => a.draw());
+      particles.forEach(p => p.draw());
+
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Input Handling
+    answerInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = parseInt(answerInput.value.trim(), 10);
+        if (!isNaN(val)) {
+          let hit = false;
+          for (let i = 0; i < aliens.length; i++) {
+            if (aliens[i].result === val) {
+              // Destroy Alien
+              explode(aliens[i].x + aliens[i].width/2, aliens[i].y + aliens[i].height/2);
+              aliens.splice(i, 1);
+              score += 100;
+              scoreVal.textContent = score;
+              hit = true;
+              break;
+            }
+          }
+        }
+        answerInput.value = '';
+      }
+    });
+
+    // Game flow controls
+    function startGame() {
+      gameState = 'PLAYING';
+      score = 0;
+      elapsedTime = 0;
+      startTime = Date.now();
+      aliens = [];
+      particles = [];
+      scoreVal.textContent = '0';
+      timerVal.textContent = '00:00';
+
+      startScreen.classList.add('hidden');
+      scoresScreen.classList.add('hidden');
+      gameoverScreen.classList.add('hidden');
+      inputContainer.classList.remove('hidden');
+
+      answerInput.value = '';
+      answerInput.focus();
+    }
+
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      inputContainer.classList.add('hidden');
+      gameoverScreen.classList.remove('hidden');
+
+      finalScore.textContent = score;
+      finalTime.textContent = formatTime(elapsedTime);
+
+      if (checkIsHighScore(score) && score > 0) {
+        newRecordBox.classList.remove('hidden');
+        playerNameInput.value = '';
+        playerNameInput.focus();
+      } else {
+        newRecordBox.classList.add('hidden');
+      }
+    }
+
+    // Buttons actions
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+    document.getElementById('scores-btn').addEventListener('click', () => {
+      updateScoresTable();
+      startScreen.classList.add('hidden');
+      scoresScreen.classList.remove('hidden');
+    });
+    document.getElementById('back-start-btn').addEventListener('click', () => {
+      scoresScreen.classList.add('hidden');
+      startScreen.classList.remove('hidden');
+    });
+    document.getElementById('menu-btn').addEventListener('click', () => {
+      gameoverScreen.classList.add('hidden');
+      startScreen.classList.remove('hidden');
+    });
+
+    saveScoreBtn.addEventListener('click', () => {
+      const name = playerNameInput.value.trim().toUpperCase() || 'ANONYME';
+      const scores = getHighScores();
+      scores.push({
+        name: name,
+        score: score,
+        time: formatTime(elapsedTime)
+      });
+      scores.sort((a, b) => b.score - a.score);
+      const top5 = scores.slice(0, 5);
+      saveHighScores(top5);
+
+      newRecordBox.classList.add('hidden');
+      const playerIndex = top5.findIndex(s => s.name === name && s.score === score);
+      updateScoresTable(playerIndex);
+      gameoverScreen.classList.add('hidden');
+      scoresScreen.classList.remove('hidden');
+    });
+
+    // Keep focus on input during game
+    document.addEventListener('click', () => {
+      if (gameState === 'PLAYING') answerInput.focus();
+    });
+
+    // Start Animation loop
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
